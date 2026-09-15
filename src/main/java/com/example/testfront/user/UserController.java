@@ -14,6 +14,11 @@ public class UserController {
         this.userService = userService;
     }
 
+    @GetMapping
+    public UserResponse findByPhoneNumber(@Valid @ModelAttribute FindUserRequest request) {
+        return userService.findByPhoneNumber(request.phoneNumber());
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse create(@Valid @RequestBody CreateUserRequest request) {
