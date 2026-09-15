@@ -14,6 +14,10 @@ public class User {
     @Column(nullable = false, length = 100)
     private String name;
 
+    // Existing users may not have a phone number; new requests require one.
+    @Column(name = "phone_number", length = 30)
+    private String phoneNumber;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -23,8 +27,9 @@ public class User {
     protected User() {
     }
 
-    public User(String name) {
+    public User(String name, String phoneNumber) {
         this.name = name;
+        this.phoneNumber = phoneNumber;
     }
 
     @PrePersist
@@ -45,6 +50,10 @@ public class User {
 
     public String getName() {
         return name;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
     }
 
     public Instant getCreatedAt() {

@@ -14,7 +14,7 @@ public class UserService {
 
     @Transactional
     public UserResponse create(CreateUserRequest request) {
-        User user = userRepository.save(new User(request.name()));
+        User user = userRepository.save(new User(request.name(), request.phoneNumber()));
         return UserResponse.from(user);
     }
 }
