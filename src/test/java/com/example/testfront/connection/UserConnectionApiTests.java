@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
@@ -97,6 +99,67 @@ class UserConnectionApiTests {
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest());
         assertThat(connectionRepository.count()).isZero();
+    }
+
+    @Test
+    void listsOnlyConnectionsRegisteredByRequestedUser() throws Exception {
+        var connection = connectionRepository.saveAndFlush(new UserConnection(owner, target));
+        connectionRepository.saveAndFlush(new UserConnection(target, owner));
+        mockMvc.perform(get("/api/users/{userId}/connections", owner.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(connection.getId()))
+                .andExpect(jsonPath("$[0].userId").value(owner.getId()))
+                .andExpect(jsonPath("$[0].connectedUserId").value(target.getId()))
+                .andExpect(jsonPath("$[0].name").value(target.getName()))
+                .andExpect(jsonPath("$[0].phoneNumber").value(target.getPhoneNumber()));
+    }
+
+    @Test
+    void returnsEmptyListWhenNoConnectionsExist() throws Exception {
+        mockMvc.perform(get("/api/users/{userId}/connections", owner.getId()))
+                .andExpect(status().isOk()).andExpect(content().json("[]"));
+    }
+
+    @Test
+    void rejectsListingForUnknownUser() throws Exception {
+        mockMvc.perform(get("/api/users/{userId}/connections", Long.MAX_VALUE))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deletesOnlySelectedConnectionAndPreservesUsers() throws Exception {
+        var connection = connectionRepository.saveAndFlush(new UserConnection(owner, target));
+        var reverse = connectionRepository.saveAndFlush(new UserConnection(target, owner));
+        mockMvc.perform(delete("/api/users/{userId}/connections/{connectionId}", owner.getId(), connection.getId()))
+                .andExpect(status().isNoContent()).andExpect(content().string(""));
+        connectionRepository.flush();
+        assertThat(connectionRepository.existsById(connection.getId())).isFalse();
+        assertThat(connectionRepository.existsById(reverse.getId())).isTrue();
+        assertThat(userRepository.count()).isEqualTo(2);
+    }
+
+    @Test
+    void cannotDeleteAnotherUsersConnection() throws Exception {
+        var connection = connectionRepository.saveAndFlush(new UserConnection(target, owner));
+        mockMvc.perform(delete("/api/users/{userId}/connections/{connectionId}", owner.getId(), connection.getId()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("해당 사용자의 연결을 찾을 수 없습니다."));
+        assertThat(connectionRepository.existsById(connection.getId())).isTrue();
+    }
+
+    @Test
+    void rejectsDeletingMissingConnection() throws Exception {
+        mockMvc.perform(delete("/api/users/{userId}/connections/{connectionId}", owner.getId(), Long.MAX_VALUE))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void rejectsDeletingForUnknownUser() throws Exception {
+        var connection = connectionRepository.saveAndFlush(new UserConnection(owner, target));
+        mockMvc.perform(delete("/api/users/{userId}/connections/{connectionId}", Long.MAX_VALUE, connection.getId()))
+                .andExpect(status().isNotFound());
+        assertThat(connectionRepository.existsById(connection.getId())).isTrue();
     }
 
     private void assertRejected(Long userId, String phoneNumber, int statusCode, String message) throws Exception {

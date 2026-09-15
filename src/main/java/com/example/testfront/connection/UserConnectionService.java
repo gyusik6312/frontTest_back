@@ -35,4 +35,25 @@ public class UserConnectionService {
         }
         return ConnectionResponse.from(connectionRepository.saveAndFlush(new UserConnection(user, connectedUser)));
     }
+
+    @Transactional(readOnly = true)
+    public java.util.List<ConnectedUserResponse> findAll(Long userId) {
+        requireUser(userId);
+        return connectionRepository.findAllByUser_IdOrderByIdDesc(userId).stream()
+                .map(ConnectedUserResponse::from).toList();
+    }
+
+    @Transactional
+    public void delete(Long userId, Long connectionId) {
+        requireUser(userId);
+        var connection = connectionRepository.findByIdAndUser_Id(connectionId, userId)
+                .orElseThrow(() -> new ConnectionException(NOT_FOUND, "해당 사용자의 연결을 찾을 수 없습니다."));
+        connectionRepository.delete(connection);
+    }
+
+    private void requireUser(Long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new ConnectionException(NOT_FOUND, "사용자가 존재하지 않습니다.");
+        }
+    }
 }

@@ -18,4 +18,15 @@ public class UserConnectionController {
     public ConnectionResponse create(@PathVariable Long userId, @Valid @RequestBody CreateConnectionRequest request) {
         return connectionService.create(userId, request);
     }
+
+    @GetMapping
+    public java.util.List<ConnectedUserResponse> findAll(@PathVariable Long userId) {
+        return connectionService.findAll(userId);
+    }
+
+    @DeleteMapping("/{connectionId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long userId, @PathVariable Long connectionId) {
+        connectionService.delete(userId, connectionId);
+    }
 }
